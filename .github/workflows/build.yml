@@ -1,0 +1,25 @@
+name: Build DodoShot 1.5.0
+on:
+  push:
+    branches: [build-v1.5.0]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Release for Apple Silicon
+        run: |
+          set -euo pipefail
+          xcodebuild -project DodoShot.xcodeproj -scheme DodoShot -configuration Release -derivedDataPath "$RUNNER_TEMP/DerivedData" ARCHS=arm64 ONLY_ACTIVE_ARCH=NO CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= build
+          APP="$RUNNER_TEMP/DerivedData/Build/Products/Release/DodoShot.app"
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist"
+          ditto -c -k --sequesterRsrc --keepParent "$APP" DodoShot-1.5.0-arm64.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DodoShot-1.5.0-arm64
+          path: DodoShot-1.5.0-arm64.zip
+          if-no-files-found: error
